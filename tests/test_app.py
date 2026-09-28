@@ -5,6 +5,7 @@ import os
 import pathlib
 import xmlrpc.client as xmlrpclib
 from html import unescape
+from urllib.parse import urlparse
 
 # Third party imports
 import pytest
@@ -307,6 +308,34 @@ def test_simple_normalized_name_redirect(testapp, package, normalized):
     assert resp.location.endswith("/simple/{0}/".format(normalized))
 
 
+@pytest.mark.parametrize(
+    ("path", "location"),
+    [
+        ("/simple/Foo.Bar/", "http://forward.ed/priv/simple/foo-bar/"),
+        ("/Foo.Bar/json", "http://forward.ed/priv/foo-bar/json"),
+    ],
+)
+def test_normalized_name_redirect_preserves_proxy_prefix(
+    testapp, path, location
+):
+    resp = testapp.get(path, headers={"X-Forwarded-Host": "forward.ed/priv/"})
+    assert resp.location == location
+
+
+@pytest.mark.parametrize(
+    ("path", "location"),
+    [
+        ("/priv/simple/Foo.Bar/", "/priv/simple/foo-bar/"),
+        ("/priv/Foo.Bar/json", "/priv/foo-bar/json"),
+    ],
+)
+def test_normalized_name_redirect_preserves_server_base_url(
+    testpriv, path, location
+):
+    resp = testpriv.get(path, headers={"Host": "pypi.example"})
+    assert resp.location == f"http://pypi.example{location}"
+
+
 def test_simple_index(root, testapp):
     root.join("foobar-1.0.zip").write("")
     root.join("foobar-1.1.zip").write("")
@@ -463,6 +492,22 @@ def test_json_info(root, testapp):
 
 def test_json_info_package_not_existing(root, testapp):
     resp = testapp.get("/foobar/json", status=404)
+
+
+def test_json_info_url_points_to_packages(root, testapp, add_file_to_root):
+    add_file_to_root(root, "foobar-1.0.zip", "123")
+
+    resp = testapp.get("/foobar/json")
+    url = resp.json["releases"]["1.0"][0]["url"]
+    assert urlparse(url).path == "/packages/foobar-1.0.zip"
+
+
+def test_nonroot_json_info_url_stays_under_prefix(root, testpriv, add_file_to_root):
+    add_file_to_root(root, "foobar-1.0.zip", "123")
+
+    resp = testpriv.get("/priv/foobar/json")
+    url = resp.json["releases"]["1.0"][0]["url"]
+    assert urlparse(url).path == "/priv/packages/foobar-1.0.zip"
 
 
 @pytest.mark.parametrize(

@@ -300,7 +300,9 @@ def simple(project):
     # PEP 503: require normalized project
     normalized = normalize_pkgname_for_url(project)
     if project != normalized:
-        return redirect(f"/simple/{normalized}/", 301)
+        return redirect(
+            urljoin(request_fullpath(request), f"../{normalized}/"), 301
+        )
 
     packages = sorted(
         config.backend.find_project_packages(project),
@@ -397,7 +399,9 @@ def json_info(project):
     # PEP 503: require normalized project
     normalized = normalize_pkgname_for_url(project)
     if project != normalized:
-        return redirect(f"/{normalized}/json", 301)
+        return redirect(
+            urljoin(request_fullpath(request), f"../{normalized}/json"), 301
+        )
 
     packages = sorted(
         config.backend.find_project_packages(project),
@@ -413,7 +417,10 @@ def json_info(project):
     req_url = request.url
     for x in packages:
         releases[x.version].append(
-            {"url": urljoin(req_url, "../../packages/" + x.relfn)}
+            # The route is ``/:project/json``, so only one level up is needed
+            # to reach ``/packages/``; going two levels up escapes any prefix
+            # the app is mounted under (see ``--server-base-url``).
+            {"url": urljoin(req_url, "../packages/" + x.relfn)}
         )
 
     rv = {"info": {"version": latest_version}, "releases": releases}
