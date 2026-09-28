@@ -45,7 +45,7 @@ from datetime import datetime
 my_dir = osp.dirname(__file__)
 
 VFILE = osp.join(my_dir, "..", "pypiserver", "__init__.py")
-VFILE_regex_version = re.compile(r'^__version__\s*=\s*"([^"]+)"', re.MULTILINE)
+VFILE_regex_version = re.compile(r'__version__ *= *"([^"]+)"')
 VFILE_regex_datetime = re.compile(r'__updated__ *= *"([^"]+)"')
 VFILE_regex_date = re.compile(r'__updated__ *= *"([^"\s]+)\s')
 
